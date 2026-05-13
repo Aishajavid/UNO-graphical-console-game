@@ -1,0 +1,21 @@
+#pragma once
+#include "Card.h"
+#include <vector>
+#include <string>
+
+class Player {
+public:
+    std::string        name;
+    std::vector<Card>  hand;
+    bool               isBot;
+    bool               saidUno = false;   // tracks if player called UNO
+
+    Player(const std::string& n, bool bot = false)
+        : name(n), isBot(bot) {
+    }
+
+    void  addCard(const Card& c) { hand.push_back(c); saidUno = false; }
+    void  removeCard(int index) { hand.erase(hand.begin() + index); }
+    int   handSize() const { return (int)hand.size(); }
+    bool  hasWon()   const { return hand.empty(); }
+};
