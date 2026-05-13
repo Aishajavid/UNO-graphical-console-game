@@ -1,0 +1,81 @@
+#pragma once
+#include "Deck.h"
+#include "Player.h"
+#include <vector>
+#include <string>
+#include <functional>
+
+enum class GamePhase {
+    MENU,           // main menu
+    SETUP,          // player count / name setup
+    PLAYING,        // active gameplay
+    COLOR_PICK,     // wild colour chooser overlay
+    GAME_OVER       // winner screen
+};
+
+struct GameState {
+    // ── Players ────────────────────────────────────────────────────────────
+    std::vector<Player> players;
+    int   currentPlayerIdx = 0;
+    int   direction = 1;    // +1 = clockwise, -1 = counter-clockwise
+
+    // ── Deck / discard ─────────────────────────────────────────────────────
+    Deck              deck;
+    std::vector<Card> discardPile;
+    CardColor         currentColor = CardColor::RED;
+
+    // ── Pending effects ────────────────────────────────────────────────────
+    int  drawStack = 0;   // accumulated draw-two / wild-draw-four penalty
+    bool skipNext = false;
+
+    // ── Status message (shown in UI) ───────────────────────────────────────
+    std::string statusMsg;
+
+    // ── Phase ──────────────────────────────────────────────────────────────
+    GamePhase phase = GamePhase::MENU;
+
+    // ── Winner ─────────────────────────────────────────────────────────────
+    int winnerIdx = -1;
+
+    // ── Methods ────────────────────────────────────────────────────────────
+
+    // Initialise a fresh game with given player specs
+    void startGame(const std::vector<std::pair<std::string, bool>>& playerSpecs);
+
+    // Is this card playable on the current discard?
+    bool canPlay(const Card& card) const;
+
+    // Human plays a card from their hand (index into hand)
+    // Returns false if card can't be played
+    bool humanPlayCard(int handIndex);
+
+    // Human draws a card (pass turn)
+    void humanDraw();
+
+    // After wild is played the colour picker calls this
+    void setWildColor(CardColor chosenColor);
+
+    // Advance turn (apply direction + skip)
+    void advanceTurn();
+
+    // Run bot turn fully (blocking — fast, called from game loop)
+    void runBotTurn();
+
+    // Check if current player has won
+    bool checkWin();
+
+    // Deal penalty cards (drawStack) to the next player
+    void applyDrawStack();
+
+    // The top of the discard pile
+    const Card& topDiscard() const { return discardPile.back(); }
+
+    Player& currentPlayer() { return players[currentPlayerIdx]; }
+    const Player& currentPlayer() const { return players[currentPlayerIdx]; }
+
+private:
+    void dealInitialHands();
+    int  nextPlayerIdx(int from, int steps = 1) const;
+    CardColor botChooseColor(const Player& bot) const;
+    int       botChooseCard(const Player& bot) const;  // returns hand index or -1
+};
