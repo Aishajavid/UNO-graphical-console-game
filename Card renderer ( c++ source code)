@@ -1,0 +1,176 @@
+#include "CardRenderer.h"
+#include <sstream>
+
+// ── helper: get center symbol ─────────────────────────────────────────────
+std::string CardRenderer::getCardSymbol(const Card& card) {
+    switch (card.type) {
+    case CardType::ZERO:  return "0";
+    case CardType::ONE:   return "1";
+    case CardType::TWO:   return "2";
+    case CardType::THREE: return "3";
+    case CardType::FOUR:  return "4";
+    case CardType::FIVE:  return "5";
+    case CardType::SIX:   return "6";
+    case CardType::SEVEN: return "7";
+    case CardType::EIGHT: return "8";
+    case CardType::NINE:  return "9";
+    case CardType::SKIP:           return "S";
+    case CardType::REVERSE:        return "R";
+    case CardType::DRAW_TWO:       return "+2";
+    case CardType::WILD:           return "W";
+    case CardType::WILD_DRAW_FOUR: return "+4";
+    default: return "?";
+    }
+}
+
+std::string CardRenderer::getSmallLabel(const Card& card) {
+    switch (card.type) {
+    case CardType::SKIP:           return "SK";
+    case CardType::REVERSE:        return "RV";
+    case CardType::DRAW_TWO:       return "+2";
+    case CardType::WILD:           return "W";
+    case CardType::WILD_DRAW_FOUR: return "W+4";
+    default: return getCardSymbol(card);
+    }
+}
+
+// ── draw face-up card ─────────────────────────────────────────────────────
+void CardRenderer::drawCard(sf::RenderWindow& window,
+    const Card& card,
+    float x, float y,
+    const sf::Font& font,
+    bool highlight,
+    float scale)
+{
+    float w = CARD_W * scale;
+    float h = CARD_H * scale;
+
+    // Shadow
+    sf::RectangleShape shadow(sf::Vector2f(w, h));
+    shadow.setPosition(x + 3, y + 3);
+    shadow.setFillColor(sf::Color(0, 0, 0, 80));
+    //shadow.setRadius(8.f * scale); // not standard API – see below
+    window.draw(shadow);
+
+    // Border (highlight = yellow glow)
+    sf::RectangleShape border(sf::Vector2f(w + 4, h + 4));
+    border.setPosition(x - 2, y - 2);
+    border.setFillColor(highlight ? sf::Color(255, 230, 0) : sf::Color(255, 255, 255, 200));
+    window.draw(border);
+
+    // Main card body
+    sf::RectangleShape body(sf::Vector2f(w, h));
+    body.setPosition(x, y);
+    body.setFillColor(card.getSFColor());
+    window.draw(body);
+
+    // Inner white oval
+    sf::CircleShape oval(w * 0.32f, 40);
+    oval.setScale(1.f, h / (w * 0.64f));
+    oval.setOrigin(w * 0.32f, w * 0.32f);
+    oval.setPosition(x + w * 0.5f, y + h * 0.5f);
+    oval.setFillColor(sf::Color(255, 255, 255, 220));
+    window.draw(oval);
+
+    // Wild rainbow quadrants (decorative)
+    if (card.isWild()) {
+        sf::Color quadColors[4] = {
+            sf::Color(220, 50, 50),
+            sf::Color(50, 180, 80),
+            sf::Color(50, 100, 220),
+            sf::Color(240, 200, 40)
+        };
+        float cx = x + w * 0.5f;
+        float cy = y + h * 0.5f;
+        float r = std::min(w, h) * 0.28f;
+        for (int q = 0; q < 4; ++q) {
+            sf::CircleShape arc(r, 30);
+            arc.setOrigin(r, r);
+            arc.setPosition(cx, cy);
+            arc.setFillColor(quadColors[q]);
+            arc.setRotation(q * 90.f);
+            window.draw(arc);
+        }
+    }
+
+    // Center symbol
+    std::string sym = getCardSymbol(card);
+    sf::Text centerText;
+    centerText.setFont(font);
+    centerText.setString(sym);
+    centerText.setCharacterSize((unsigned)(26 * scale));
+    centerText.setStyle(sf::Text::Bold);
+    centerText.setFillColor(card.isWild() ? sf::Color::White : card.getSFColor());
+
+    sf::FloatRect tb = centerText.getLocalBounds();
+    centerText.setOrigin(tb.left + tb.width / 2.f, tb.top + tb.height / 2.f);
+    centerText.setPosition(x + w / 2.f, y + h / 2.f);
+    window.draw(centerText);
+
+    // Top-left small label
+    sf::Text tlText;
+    tlText.setFont(font);
+    tlText.setString(getSmallLabel(card));
+    tlText.setCharacterSize((unsigned)(11 * scale));
+    tlText.setFillColor(sf::Color::White);
+    tlText.setPosition(x + 4 * scale, y + 3 * scale);
+    window.draw(tlText);
+
+    // Bottom-right small label (rotated 180)
+    sf::Text brText;
+    brText.setFont(font);
+    brText.setString(getSmallLabel(card));
+    brText.setCharacterSize((unsigned)(11 * scale));
+    brText.setFillColor(sf::Color::White);
+    sf::FloatRect brb = brText.getLocalBounds();
+    brText.setOrigin(brb.left + brb.width, brb.top + brb.height);
+    brText.setRotation(180.f);
+    brText.setPosition(x + w - 4 * scale, y + h - 3 * scale);
+    window.draw(brText);
+}
+
+// ── draw card back ────────────────────────────────────────────────────────
+void CardRenderer::drawCardBack(sf::RenderWindow& window,
+    float x, float y,
+    float scale)
+{
+    float w = CARD_W * scale;
+    float h = CARD_H * scale;
+
+    // Shadow
+    sf::RectangleShape shadow(sf::Vector2f(w, h));
+    shadow.setPosition(x + 3, y + 3);
+    shadow.setFillColor(sf::Color(0, 0, 0, 80));
+    window.draw(shadow);
+
+    // White border
+    sf::RectangleShape border(sf::Vector2f(w + 4, h + 4));
+    border.setPosition(x - 2, y - 2);
+    border.setFillColor(sf::Color::White);
+    window.draw(border);
+
+    // Dark body
+    sf::RectangleShape body(sf::Vector2f(w, h));
+    body.setPosition(x, y);
+    body.setFillColor(sf::Color(20, 20, 60));
+    window.draw(body);
+
+    // Diagonal stripe pattern
+    for (int i = -10; i < 20; ++i) {
+        sf::RectangleShape stripe(sf::Vector2f(4 * scale, h * 2.f));
+        stripe.setPosition(x + i * 8 * scale, y - h * 0.5f);
+        stripe.setRotation(40.f);
+        stripe.setFillColor(sf::Color(255, 255, 255, 18));
+        window.draw(stripe);
+    }
+
+    // UNO label oval
+    sf::CircleShape oval(w * 0.28f, 40);
+    oval.setScale(1.f, h / (w * 0.56f));
+    oval.setOrigin(w * 0.28f, w * 0.28f);
+    oval.setPosition(x + w * 0.5f, y + h * 0.5f);
+    oval.setFillColor(sf::Color(180, 20, 20));
+    oval.setOutlineColor(sf::Color::White);
+    oval.setOutlineThickness(2.f * scale);
+    window.draw(oval);
+}
