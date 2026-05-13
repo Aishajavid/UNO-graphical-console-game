@@ -1,0 +1,28 @@
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "Card.h"
+
+// Draws a single UNO card at a given position.
+// Card size is 80 x 120 pixels by default.
+class CardRenderer {
+public:
+    static const int CARD_W = 80;
+    static const int CARD_H = 120;
+
+    // Draw a face-up card
+    static void drawCard(sf::RenderWindow& window,
+        const Card& card,
+        float x, float y,
+        const sf::Font& font,
+        bool highlight = false,
+        float scale = 1.f);
+
+    // Draw a face-down card (back)
+    static void drawCardBack(sf::RenderWindow& window,
+        float x, float y,
+        float scale = 1.f);
+
+private:
+    static std::string getCardSymbol(const Card& card);
+    static std::string getSmallLabel(const Card& card);
+};
