@@ -1,0 +1,38 @@
+#pragma once
+#include <string>
+#include <SFML/Graphics.hpp>
+
+enum class CardColor { RED, GREEN, BLUE, YELLOW, WILD, NONE };
+enum class CardType {
+    ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE,
+    SKIP, REVERSE, DRAW_TWO,
+    WILD, WILD_DRAW_FOUR
+};
+
+class Card {
+public:
+    CardColor color;
+    CardType  type;
+
+    Card(CardColor c, CardType t) : color(c), type(t) {}
+
+    // Returns point value
+    int getValue() const;
+
+    // Human-readable name
+    std::string getName() const;
+
+    // Is this a wild card?
+    bool isWild() const {
+        return color == CardColor::WILD;
+    }
+
+    // Is this an action card (Skip, Reverse, Draw2, Wilds)?
+    bool isAction() const {
+        return type == CardType::SKIP || type == CardType::REVERSE ||
+            type == CardType::DRAW_TWO || type == CardType::WILD ||
+            type == CardType::WILD_DRAW_FOUR;
+    }
+
+    sf::Color getSFColor() const;
+};
