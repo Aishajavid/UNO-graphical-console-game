@@ -1,0 +1,65 @@
+#include "Deck.h"
+#include <stdexcept>
+
+Deck::Deck() {
+    // 4 colours x (0 once, 1-9 twice, Skip x2, Reverse x2, DrawTwo x2)
+    // + 4 Wild + 4 Wild Draw Four = 108 cards
+    CardColor colors[] = { CardColor::RED, CardColor::GREEN,
+                           CardColor::BLUE, CardColor::YELLOW };
+
+    for (auto c : colors) {
+        // 0 appears once per colour
+        cards.emplace_back(c, CardType::ZERO);
+
+        // 1-9, Skip, Reverse, Draw Two appear twice per colour
+        CardType twice[] = {
+            CardType::ONE, CardType::TWO, CardType::THREE,
+            CardType::FOUR, CardType::FIVE, CardType::SIX,
+            CardType::SEVEN, CardType::EIGHT, CardType::NINE,
+            CardType::SKIP, CardType::REVERSE, CardType::DRAW_TWO
+        };
+        for (auto t : twice) {
+            cards.emplace_back(c, t);
+            cards.emplace_back(c, t);
+        }
+    }
+
+    // 4 Wild + 4 Wild Draw Four
+    for (int i = 0; i < 4; ++i) {
+        cards.emplace_back(CardColor::WILD, CardType::WILD);
+        cards.emplace_back(CardColor::WILD, CardType::WILD_DRAW_FOUR);
+    }
+
+    shuffle();
+}
+
+void Deck::shuffle() {
+    auto seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 rng(seed);
+    std::shuffle(cards.begin(), cards.end(), rng);
+}
+
+Card Deck::draw() {
+    if (cards.empty())
+        throw std::runtime_error("Deck is empty!");
+    Card c = cards.back();
+    cards.pop_back();
+    return c;
+}
+
+void Deck::refillFrom(std::vector<Card>& discardPile) {
+    // Keep the top discard card; reshuffle the rest back into the deck
+    if (discardPile.size() <= 1) return;
+    Card top = discardPile.back();
+    discardPile.pop_back();
+
+    for (auto& c : discardPile) {
+        // Reset wilds back to no-colour
+        if (c.type == CardType::WILD || c.type == CardType::WILD_DRAW_FOUR)
+            c.color = CardColor::WILD;
+        cards.push_back(c);
+    }
+    discardPile.clear();
+    discardPile.push_back(top);
+    shuffle();
+}
