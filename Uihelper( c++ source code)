@@ -1,0 +1,87 @@
+#include "UIHelper.h"
+
+namespace UI {
+
+    sf::FloatRect drawButton(sf::RenderWindow& window,
+        const sf::Font& font,
+        const std::string& label,
+        float x, float y, float w, float h,
+        sf::Color bg, sf::Color textColor,
+        unsigned charSize)
+    {
+        // Shadow
+        sf::RectangleShape shadow(sf::Vector2f(w, h));
+        shadow.setPosition(x + 3, y + 3);
+        shadow.setFillColor(sf::Color(0, 0, 0, 80));
+        window.draw(shadow);
+
+        // Button body
+        sf::RectangleShape rect(sf::Vector2f(w, h));
+        rect.setPosition(x, y);
+        rect.setFillColor(bg);
+        rect.setOutlineColor(sf::Color(255, 255, 255, 120));
+        rect.setOutlineThickness(1.5f);
+        window.draw(rect);
+
+        // Label
+        sf::Text txt;
+        txt.setFont(font);
+        txt.setString(label);
+        txt.setCharacterSize(charSize);
+        txt.setFillColor(textColor);
+        txt.setStyle(sf::Text::Bold);
+        sf::FloatRect tb = txt.getLocalBounds();
+        txt.setOrigin(tb.left + tb.width / 2.f, tb.top + tb.height / 2.f);
+        txt.setPosition(x + w / 2.f, y + h / 2.f);
+        window.draw(txt);
+
+        return sf::FloatRect(x, y, w, h);
+    }
+
+    void drawCentredText(sf::RenderWindow& window,
+        const sf::Font& font,
+        const std::string& str,
+        float cx, float cy,
+        unsigned size,
+        sf::Color color,
+        bool bold)
+    {
+        sf::Text txt;
+        txt.setFont(font);
+        txt.setString(str);
+        txt.setCharacterSize(size);
+        txt.setFillColor(color);
+        if (bold) txt.setStyle(sf::Text::Bold);
+        sf::FloatRect tb = txt.getLocalBounds();
+        txt.setOrigin(tb.left + tb.width / 2.f, tb.top + tb.height / 2.f);
+        txt.setPosition(cx, cy);
+        window.draw(txt);
+    }
+
+    void drawOverlay(sf::RenderWindow& window, sf::Color color) {
+        sf::Vector2u sz = window.getSize();
+        sf::RectangleShape overlay(sf::Vector2f((float)sz.x, (float)sz.y));
+        overlay.setFillColor(color);
+        window.draw(overlay);
+    }
+
+    void drawStatusBar(sf::RenderWindow& window,
+        const sf::Font& font,
+        const std::string& msg,
+        float winW, float winH)
+    {
+        float barH = 36.f;
+        sf::RectangleShape bar(sf::Vector2f(winW, barH));
+        bar.setPosition(0, winH - barH);
+        bar.setFillColor(sf::Color(20, 20, 40, 210));
+        window.draw(bar);
+
+        drawCentredText(window, font, msg, winW / 2.f, winH - barH / 2.f, 17,
+            sf::Color(220, 220, 255));
+    }
+
+    bool contains(const sf::FloatRect& r, sf::Vector2i mouse) {
+        return r.contains((float)mouse.x, (float)mouse.y);
+    }
+
+} // namespace UI
