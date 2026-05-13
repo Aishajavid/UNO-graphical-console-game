@@ -1,0 +1,66 @@
+#include "Card.h"
+
+int Card::getValue() const {
+    switch (type) {
+    case CardType::ZERO:  return 0;
+    case CardType::ONE:   return 1;
+    case CardType::TWO:   return 2;
+    case CardType::THREE: return 3;
+    case CardType::FOUR:  return 4;
+    case CardType::FIVE:  return 5;
+    case CardType::SIX:   return 6;
+    case CardType::SEVEN: return 7;
+    case CardType::EIGHT: return 8;
+    case CardType::NINE:  return 9;
+    case CardType::SKIP:       return 20;
+    case CardType::REVERSE:    return 20;
+    case CardType::DRAW_TWO:   return 20;
+    case CardType::WILD:           return 50;
+    case CardType::WILD_DRAW_FOUR: return 50;
+    default: return 0;
+    }
+}
+
+std::string Card::getName() const {
+    std::string colorStr;
+    switch (color) {
+    case CardColor::RED:    colorStr = "Red ";    break;
+    case CardColor::GREEN:  colorStr = "Green ";  break;
+    case CardColor::BLUE:   colorStr = "Blue ";   break;
+    case CardColor::YELLOW: colorStr = "Yellow "; break;
+    case CardColor::WILD:   colorStr = "";         break;
+    default: colorStr = "";
+    }
+
+    std::string typeStr;
+    switch (type) {
+    case CardType::ZERO:  typeStr = "0"; break;
+    case CardType::ONE:   typeStr = "1"; break;
+    case CardType::TWO:   typeStr = "2"; break;
+    case CardType::THREE: typeStr = "3"; break;
+    case CardType::FOUR:  typeStr = "4"; break;
+    case CardType::FIVE:  typeStr = "5"; break;
+    case CardType::SIX:   typeStr = "6"; break;
+    case CardType::SEVEN: typeStr = "7"; break;
+    case CardType::EIGHT: typeStr = "8"; break;
+    case CardType::NINE:  typeStr = "9"; break;
+    case CardType::SKIP:           typeStr = "Skip";         break;
+    case CardType::REVERSE:        typeStr = "Reverse";      break;
+    case CardType::DRAW_TWO:       typeStr = "Draw Two";     break;
+    case CardType::WILD:           typeStr = "Wild";         break;
+    case CardType::WILD_DRAW_FOUR: typeStr = "Wild Draw 4";  break;
+    default: typeStr = "?";
+    }
+    return colorStr + typeStr;
+}
+
+sf::Color Card::getSFColor() const {
+    switch (color) {
+    case CardColor::RED:    return sf::Color(220, 50, 50);
+    case CardColor::GREEN:  return sf::Color(50, 180, 80);
+    case CardColor::BLUE:   return sf::Color(50, 100, 220);
+    case CardColor::YELLOW: return sf::Color(240, 200, 40);
+    case CardColor::WILD:   return sf::Color(80, 80, 80);
+    default:                return sf::Color(100, 100, 100);
+    }
+}
