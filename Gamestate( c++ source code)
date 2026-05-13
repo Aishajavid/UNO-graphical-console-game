@@ -1,0 +1,283 @@
+#include "GameState.h"
+#include <algorithm>
+#include <sstream>
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+int GameState::nextPlayerIdx(int from, int steps) const {
+    int n = (int)players.size();
+    return ((from + direction * steps) % n + n) % n;
+}
+
+void GameState::dealInitialHands() {
+    for (auto& p : players)
+        p.hand.clear();
+
+    for (int i = 0; i < 7; ++i)
+        for (auto& p : players)
+            p.addCard(deck.draw());
+}
+
+// ── public ───────────────────────────────────────────────────────────────────
+
+void GameState::startGame(const std::vector<std::pair<std::string, bool>>& specs) {
+    players.clear();
+    for (auto& [name, bot] : specs)
+        players.emplace_back(name, bot);
+
+    deck = Deck();
+    discardPile.clear();
+    direction = 1;
+    currentPlayerIdx = 0;
+    drawStack = 0;
+    skipNext = false;
+    winnerIdx = -1;
+
+    dealInitialHands();
+
+    // Turn over first card — re-draw if it's a wild
+    Card first = deck.draw();
+    while (first.type == CardType::WILD || first.type == CardType::WILD_DRAW_FOUR) {
+        deck.cards.insert(deck.cards.begin(), first);
+        first = deck.draw();
+    }
+    discardPile.push_back(first);
+    currentColor = first.color;
+
+    // Apply the opening card's action
+    if (first.type == CardType::SKIP)    skipNext = true;
+    if (first.type == CardType::REVERSE) direction = -1;
+    if (first.type == CardType::DRAW_TWO) drawStack = 2;
+
+    statusMsg = players[0].name + "'s turn";
+    phase = GamePhase::PLAYING;
+}
+
+bool GameState::canPlay(const Card& card) const {
+    const Card& top = topDiscard();
+
+    // If there's a draw stack, only stacking draw cards is allowed
+    if (drawStack > 0) {
+        if (drawStack % 4 == 0) // came from draw-four chain
+            return card.type == CardType::WILD_DRAW_FOUR;
+        else                    // came from draw-two chain
+            return card.type == CardType::DRAW_TWO ||
+            card.type == CardType::WILD_DRAW_FOUR;
+    }
+
+    if (card.isWild()) return true;
+    if (card.color == currentColor) return true;
+    if (card.type == top.type)     return true;
+    return false;
+}
+
+bool GameState::humanPlayCard(int handIndex) {
+    Player& p = currentPlayer();
+    if (handIndex < 0 || handIndex >= p.handSize()) return false;
+
+    Card& card = p.hand[handIndex];
+    if (!canPlay(card)) return false;
+
+    discardPile.push_back(card);
+    p.removeCard(handIndex);
+
+    Card played = discardPile.back();
+
+    // Update colour
+    if (!played.isWild())
+        currentColor = played.color;
+
+    // Handle actions
+    if (played.type == CardType::DRAW_TWO)
+        drawStack += 2;
+    else if (played.type == CardType::WILD_DRAW_FOUR)
+        drawStack += 4;
+    else if (played.type == CardType::SKIP)
+        skipNext = true;
+    else if (played.type == CardType::REVERSE) {
+        direction *= -1;
+        if (players.size() == 2) skipNext = true; // 2-player reverse = skip
+    }
+
+    if (p.handSize() == 1)
+        p.saidUno = true; // auto-call UNO
+
+    if (checkWin()) return true;
+
+    if (played.isWild()) {
+        phase = GamePhase::COLOR_PICK;
+    }
+    else {
+        advanceTurn();
+    }
+    return true;
+}
+
+void GameState::humanDraw() {
+    if (deck.isEmpty()) deck.refillFrom(discardPile);
+
+    // If there's a draw stack, the player must take those cards
+    if (drawStack > 0) {
+        applyDrawStack();
+        advanceTurn();
+        return;
+    }
+
+    Player& p = currentPlayer();
+    Card drawn = deck.draw();
+    p.addCard(drawn);
+
+    statusMsg = p.name + " drew a card";
+
+    // If the drawn card is playable, the player MAY play it
+    // We handle this in the GUI by checking after draw
+    advanceTurn();
+}
+
+void GameState::applyDrawStack() {
+    int target = nextPlayerIdx(currentPlayerIdx);
+    if (deck.isEmpty()) deck.refillFrom(discardPile);
+    for (int i = 0; i < drawStack; ++i) {
+        if (deck.isEmpty()) deck.refillFrom(discardPile);
+        players[target].addCard(deck.draw());
+    }
+    std::ostringstream oss;
+    oss << players[target].name << " draws " << drawStack << " cards!";
+    statusMsg = oss.str();
+    drawStack = 0;
+    skipNext = true; // the target player is skipped
+}
+
+void GameState::setWildColor(CardColor chosenColor) {
+    currentColor = chosenColor;
+    phase = GamePhase::PLAYING;
+    advanceTurn();
+}
+
+void GameState::advanceTurn() {
+    if (skipNext) {
+        currentPlayerIdx = nextPlayerIdx(currentPlayerIdx);
+        skipNext = false;
+    }
+    currentPlayerIdx = nextPlayerIdx(currentPlayerIdx);
+
+    std::ostringstream oss;
+    oss << currentPlayer().name << "'s turn";
+    statusMsg = oss.str();
+}
+
+bool GameState::checkWin() {
+    for (int i = 0; i < (int)players.size(); ++i) {
+        if (players[i].hasWon()) {
+            winnerIdx = i;
+            phase = GamePhase::GAME_OVER;
+            statusMsg = players[i].name + " wins!";
+            return true;
+        }
+    }
+    return false;
+}
+
+// ── Bot AI ───────────────────────────────────────────────────────────────────
+
+CardColor GameState::botChooseColor(const Player& bot) const {
+    int counts[4] = {};
+    for (auto& c : bot.hand) {
+        if (c.color == CardColor::RED)    counts[0]++;
+        else if (c.color == CardColor::GREEN)  counts[1]++;
+        else if (c.color == CardColor::BLUE)   counts[2]++;
+        else if (c.color == CardColor::YELLOW) counts[3]++;
+    }
+    int best = 0;
+    for (int i = 1; i < 4; ++i)
+        if (counts[i] > counts[best]) best = i;
+
+    CardColor cols[] = { CardColor::RED, CardColor::GREEN,
+                         CardColor::BLUE, CardColor::YELLOW };
+    return cols[best];
+}
+
+int GameState::botChooseCard(const Player& bot) const {
+    // Priority: action cards > number cards; prefer matching colour
+    int bestIdx = -1;
+    int bestScore = -1;
+
+    for (int i = 0; i < bot.handSize(); ++i) {
+        const Card& c = bot.hand[i];
+        if (!canPlay(c)) continue;
+
+        int score = 0;
+        if (c.color == currentColor)        score += 10;
+        if (c.type == topDiscard().type)   score += 5;
+        if (c.isAction())                   score += 8;
+        if (c.isWild())                     score += 3; // save wilds
+        score += c.getValue() / 10;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
+
+void GameState::runBotTurn() {
+    Player& bot = currentPlayer();
+
+    // Must take draw stack
+    if (drawStack > 0) {
+        // Bot can only escape if it can stack
+        int card = botChooseCard(bot);
+        if (card != -1) {
+            humanPlayCard(card); // re-use play logic
+            return;
+        }
+        applyDrawStack();
+        advanceTurn();
+        return;
+    }
+
+    int idx = botChooseCard(bot);
+    if (idx == -1) {
+        // Draw a card
+        if (deck.isEmpty()) deck.refillFrom(discardPile);
+        Card drawn = deck.draw();
+        bot.addCard(drawn);
+        statusMsg = bot.name + " draws a card";
+        advanceTurn();
+        return;
+    }
+
+    Card played = bot.hand[idx];
+    discardPile.push_back(played);
+    bot.removeCard(idx);
+
+    if (!played.isWild())
+        currentColor = played.color;
+
+    if (played.type == CardType::DRAW_TWO)       drawStack += 2;
+    else if (played.type == CardType::WILD_DRAW_FOUR) drawStack += 4;
+    else if (played.type == CardType::SKIP)       skipNext = true;
+    else if (played.type == CardType::REVERSE) {
+        direction *= -1;
+        if (players.size() == 2) skipNext = true;
+    }
+
+    if (bot.handSize() == 1) bot.saidUno = true;
+
+    statusMsg = bot.name + " played " + played.getName();
+
+    if (checkWin()) return;
+
+    if (played.isWild()) {
+        currentColor = botChooseColor(bot);
+        statusMsg += " → chose " + [&]() -> std::string {
+            switch (currentColor) {
+            case CardColor::RED:    return "Red";
+            case CardColor::GREEN:  return "Green";
+            case CardColor::BLUE:   return "Blue";
+            case CardColor::YELLOW: return "Yellow";
+            default: return "?";
+            }
+            }();
+    }
