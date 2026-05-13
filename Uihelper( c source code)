@@ -1,0 +1,39 @@
+#pragma once
+#include <SFML/Graphics.hpp>
+#include <string>
+
+// Simple stateless helper for common UI elements
+namespace UI {
+
+    // Draw a rounded-looking button and return its rect (for hit testing)
+    sf::FloatRect drawButton(sf::RenderWindow& window,
+        const sf::Font& font,
+        const std::string& label,
+        float x, float y,
+        float w, float h,
+        sf::Color bg = sf::Color(60, 60, 140),
+        sf::Color text = sf::Color::White,
+        unsigned charSize = 20);
+
+    // Centred text
+    void drawCentredText(sf::RenderWindow& window,
+        const sf::Font& font,
+        const std::string& str,
+        float cx, float cy,
+        unsigned size,
+        sf::Color color = sf::Color::White,
+        bool bold = false);
+
+    // Semi-transparent full-screen overlay
+    void drawOverlay(sf::RenderWindow& window,
+        sf::Color color = sf::Color(0, 0, 0, 160));
+
+    // Status bar at the bottom
+    void drawStatusBar(sf::RenderWindow& window,
+        const sf::Font& font,
+        const std::string& msg,
+        float winW, float winH);
+
+    // Check if mouse point is inside a float rect
+    bool contains(const sf::FloatRect& r, sf::Vector2i mouse);
+}
